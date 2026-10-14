@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+data/raw/*.csv
+artifacts/*.joblib
+artifacts/*.json
+.streamlit/secrets.toml
+catboost_info/
+server.log*
+.streamlit/server.pid
