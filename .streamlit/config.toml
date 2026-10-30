@@ -4,12 +4,14 @@
 #   ./.venv/bin/streamlit run app/dashboard.py
 #
 # --- server.allowedHosts ---------------------------------------------------
-# Guards the WebSocket handshake against DNS rebinding. Streamlit compares the
-# request's Host against each entry *exactly* (ports are ignored), so BOTH the
-# local and the preview host must be listed or that host's app stays blank:
+# Guards the WebSocket handshake against DNS rebinding. Plain names are matched
+# exactly (ports ignored), wildcards are supported: "*" matches any host and
+# "*.example.com" any subdomain. Every host you open the app on must be covered
+# or that host's app stays blank:
 #
 #   localhost / 127.0.0.1  -> you opening it on this machine
 #   <preview host>          -> the Freebuff preview panel (through the proxy)
+#   *.streamlit.app / *.hf.space -> hosted deployments (Streamlit Cloud, HF)
 #
 # The preview hostname changes when the environment is restored. If the page
 # loads but renders blank, the WebSocket is being rejected: check the log for
@@ -24,4 +26,6 @@ allowedHosts = [
   "localhost",
   "127.0.0.1",
   "pv-ed9329900fe-cefca147-afe1-4c73-a1a9-abd697bff8b3.style.dev",
+  "*.streamlit.app",
+  "*.hf.space",
 ]

@@ -18,6 +18,7 @@ from __future__ import annotations
 import datetime as dt
 import math
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Sequence
 
 import numpy as np
@@ -243,5 +244,8 @@ def write_csv(df: pl.DataFrame, path: str) -> str:
         pl.col(ACCOUNT).alias("Account"),
         pl.col(CURRENCY).alias("Currency"),
     )
+    # Create the destination directory: a fresh checkout has no data/raw/, and
+    # both scripts/train.py and the dashboard's sample fallback write here.
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     out.write_csv(path)
     return path
