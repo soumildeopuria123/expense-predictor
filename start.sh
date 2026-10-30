@@ -48,7 +48,9 @@ if not m:
 entries = re.findall(r'"([^"]+)"', m.group(2))
 if new in local:
     raise SystemExit(f"refusing to replace a local entry with {new}")
-foreign = [e for e in entries if e not in local]
+# Wildcard entries ("*", "*.example.com") cover hosted deployments and are
+# never the preview host, so they are not rotation candidates.
+foreign = [e for e in entries if e not in local and "*" not in e]
 if len(foreign) != 1:
     raise SystemExit(
         f"expected exactly 1 non-local entry to rotate in {p}, found {foreign}"
@@ -62,7 +64,7 @@ if foreign[0] == new:
 # restores the file byte-for-byte. This works in either direction (a plain
 # hostname match, not a .style.dev pattern), so a rotated host can always be
 # rotated back.
-rotated = [new if e not in local else e for e in entries]
+rotated = [new if e == foreign[0] else e for e in entries]
 lines = "\n".join(f'  "{e}",' for e in rotated)
 p.write_text(text[: m.end(1)] + "\n" + lines + "\n" + text[m.start(3) :])
 print(f"allowedHosts: {foreign[0]} -> {new}")

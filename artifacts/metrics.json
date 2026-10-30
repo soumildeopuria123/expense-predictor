@@ -1,0 +1,69 @@
+{
+  "config": {
+    "categorizer": "lightgbm",
+    "anomaly_method": "ensemble",
+    "contamination": 0.03,
+    "test_fraction": 0.3,
+    "oof_folds": 3,
+    "random_state": 42,
+    "anomaly_scope": "debits"
+  },
+  "rows": {
+    "train": 3529,
+    "test": 1512
+  },
+  "categorization": {
+    "accuracy": 0.9966931216931217,
+    "macro_f1": 0.9950410722471119,
+    "weighted_f1": 0.9966907753905387,
+    "macro_precision": 0.9958170083931244,
+    "macro_recall": 0.9944107565156256,
+    "per_class": {
+      "Dining": {"precision": 1.0, "recall": 0.9959, "f1": 0.9979, "support": 244},
+      "Education": {"precision": 0.9583, "recall": 1.0, "f1": 0.9787, "support": 23},
+      "Entertainment": {"precision": 1.0, "recall": 1.0, "f1": 1.0, "support": 68},
+      "Fees & Interest": {"precision": 1.0, "recall": 1.0, "f1": 1.0, "support": 30},
+      "Gifts & Donations": {"precision": 1.0, "recall": 0.9545, "f1": 0.9767, "support": 22},
+      "Groceries": {"precision": 1.0, "recall": 1.0, "f1": 1.0, "support": 178},
+      "Health & Fitness": {"precision": 1.0, "recall": 1.0, "f1": 1.0, "support": 79},
+      "Housing & Rent": {"precision": 1.0, "recall": 1.0, "f1": 1.0, "support": 43},
+      "Insurance": {"precision": 1.0, "recall": 1.0, "f1": 1.0, "support": 49},
+      "Personal Care": {"precision": 1.0, "recall": 1.0, "f1": 1.0, "support": 38},
+      "Salary & Income": {"precision": 1.0, "recall": 0.9855, "f1": 0.9927, "support": 69},
+      "Shopping": {"precision": 0.9939, "recall": 1.0, "f1": 0.997, "support": 164},
+      "Subscriptions": {"precision": 1.0, "recall": 1.0, "f1": 1.0, "support": 95},
+      "Transfers": {"precision": 1.0, "recall": 0.9886, "f1": 0.9943, "support": 88},
+      "Transport": {"precision": 0.9899, "recall": 1.0, "f1": 0.9949, "support": 197},
+      "Travel": {"precision": 1.0, "recall": 0.9804, "f1": 0.9901, "support": 51},
+      "Utilities": {"precision": 0.9867, "recall": 1.0, "f1": 0.9933, "support": 74}
+    }
+  },
+  "anomaly": {
+    "ground_truth": true,
+    "test_anomaly_rate": 0.02447089947089947,
+    "flag_rate": 0.026455026455026454,
+    "precision": 0.375,
+    "recall": 0.40540540540540543,
+    "f1": 0.38961038961038963,
+    "average_precision": 0.3460281133815684,
+    "random_baseline_ap": 0.02447089947089947,
+    "lift": 14.140392092781932,
+    "detection_by_type": {
+      "amount_spike": {"n": 14, "caught": 8, "catch_rate": 0.5714285714285714, "mean_score": 0.5467},
+      "odd_hour": {"n": 4, "caught": 0, "catch_rate": 0.0, "mean_score": 0.1798},
+      "unknown_merchant": {"n": 6, "caught": 6, "catch_rate": 1.0, "mean_score": 0.6213},
+      "velocity_burst": {"n": 13, "caught": 2, "catch_rate": 0.15384615384615385, "mean_score": 0.2977}
+    }
+  },
+  "backends": {
+    "categorizer": "lightgbm",
+    "anomaly": "ensemble",
+    "anomaly_features": [
+      "amount_vs_category",
+      "log1p_abs_amount",
+      "txns_prev_2h",
+      "days_since_prev_txn",
+      "spend_prev_7d"
+    ]
+  }
+}
