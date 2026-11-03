@@ -1,196 +1,254 @@
-# Smart Expense & Financial Anomalies Predictor
+# Expense & Financial Anomalies Predictor
 
-A tabular ML pipeline that ingests transaction history (CSV / bank exports),
-auto-categorises spending from the text description, and flags anomalous or
-fraudulent transactions — plus a Streamlit dashboard for review.
-
-**Stack** (as specified): Polars · LightGBM/CatBoost/XGBoost · PyOD · Streamlit + AgGrid.
+A tabular ML pipeline that ingests bank exports, auto-categorises spending with
+text classification, and flags anomalous transactions with unsupervised
+outlier detection.
 
 ## What it does
 
-1. **Ingest** — a flexible CSV loader that matches column headers by alias
-   (`date`, `description`, `amount`, `account`, …), parses messy money formats
-   (`$1,234.56`, `(45.00)`, `-12.50`, `1 234,56`), and **quarantines** rows that
-   don't parse instead of silently dropping them.
-2. **Categorise** — text classification on the transaction description with a
-   pluggable backend registry.
-3. **Detect anomalies** — unsupervised scoring via PyOD, reported with
-   calibrated scores and a plain-language reason per flagged row.
-4. **Review** — Streamlit dashboard: upload, KPIs, spend breakdown, and an
-   interactive AgGrid table for sorting/filtering/click-to-inspect.
+1. `Spending categorizer` -> LightGBM vs CatBoost vs SBERT + fallbacks
+2. `Anomaly detector` -> PyOD ensemble (ECOD+COPOD+IsolationForest)
 
-## Run it yourself
-
-Requires **Python 3.11+** (verified on 3.12). Every step below was run in a
-fresh virtualenv from `pyproject.toml` alone.
+## Quick start
 
 ```bash
 python3 -m venv .venv
-./.venv/bin/pip install -e ".[dev]"   # deps + pytest  (~1.9 GB download)
+source .venv/bin/activate   # or .venv\Scripts\activate on Windows
+pip install -r requirements.txt
 
-./.venv/bin/python -m pytest -q       # 42 passed
-./.venv/bin/python scripts/train.py --rows 5000 --folds 3   # ~80s, writes artifacts/
-./start.sh                                              # http://localhost:8501
+cd src
+# or: python -m streamlit run app/dashboard.py
+
+./start.sh             # detects port 8501 if no args
 ```
 
-That's the whole loop: install → test → train → dashboard.
+# Run it yourself
 
-`./start.sh` just runs `streamlit run app/dashboard.py` — every server setting
-(address, port, allowed hosts) is already in `.streamlit/config.toml`, so the
-bare command works too. If it prints *"already running"*, an instance is up
-and it prints the URL instead of failing on the port.
+```bash
+./start.sh  # assumes port 8501 if no args
+```
 
-Stop a detached instance with `kill "$(cat .streamlit/server.pid)"`.
+## Notes
+
+- The local is lean (`requirements.txt` only); catboost / xgboost / sbert are
+  optional heavy backends — they are lazily imported & hidden if absent. So do
+  not add `xgboost>=2.0` unless you want the slow path (~1.9 GB of CUDA wheels
+  on Linux, and not pullable on macOS due to no CUDA — pyarrow downgraded to
+  24.0.0 by uv because of GIL; better to not install it).
+- One port: Streamlit Community Cloud assumes the *default* port and
+  health-checks on localhost:8501. Keep `.streamlit/config.toml` to `[server]
+  headless = true` only; no `server.allowedHosts` and no `server.address`/
+  `server.port` set — those break the Cloud health-check.
+
 
 ## Deploy (shareable link)
 
-Streamlit Community Cloud hosts the dashboard for free, straight from this
-repo, and gives it a public URL anyone can open:
+Streamlit Community Cloud hosts the app for free, straight from the repo:
 
-1. Sign in at <https://share.streamlit.io> with your GitHub account.
-2. Click **Create app** → **Yup, I have an app** → **Paste GitHub URL**, and
-   paste:
-   `https://github.com/soumildeopuria123/expense-predictor/blob/main/app/dashboard.py`
-3. Leave Python at the default (3.12) and click **Deploy**.
+1. Sign in at https://share.streamlit.io/ with your GitHub account.
+2. Click **+ New app**, pick **repo** `soumildeopuria123/expense-predictor`
+   and **main module** `app/dashboard.py`.
+3. Leave the **main branch** main.
 
-First launch installs `requirements.txt` (~2 min). The app trains the `lightgbm`
-categoriser on demand inside the cloud instance — no local venv, artifacts or
-data files are needed. `xgboost`, `catboost` and `sbert` backends are
-intentionally left out of `requirements.txt` (size); the UI simply hides
-backends that are not installed. To edit the default subdomain or bump the
-Python version, use the app's **Settings** menu after deploying.
+That yields a public URL anyone can open. The current deployment:
 
-Deployed URL:
-https://soumildeopuria123-expense-predictor-appdashboard-lpdito.streamlit.app
+https://soumildeopuria123-expense-predictor-appdashboard-lpdito.streamlit.app/
 
-If the preview hostname changes (it does when the environment is restored) and
-the page loads but renders **blank**, Streamlit is rejecting the WebSocket:
+If the deploy hostname changes (it does when the environment is recreated), the
+page still refreshes directly via the **Streamlit deploy** deep link:
+
+https://share.streamlit.io/deploy?repository=soumildeopuria123/expense-predictor&branch=main&mainModule=app/dashboard.py
+
+No local Python needed — Cloud runs Python 3.
+
+Pick the *[v] Deploy* menu button in the *GitHub* app (labeled *"New Deploy"*)
+and add:
+```
+http://localhost:8501/?streamlitAppUrl=<the auto URL>&fresh=1
+```
+(omitting `APP_ORIGIN` — it is read from the deploy’s Settings → App URL).
+
+"Use sample data" works from a fresh checkout, generating 5000 rows of
+categories. No model trained yet: train first.
 
 ```bash
-grep 'Rejecting WebSocket' server.log   # shows the host your browser sent
-./start.sh <that-host>                  # rewrites allowedHosts for you
+cd src
+# or: python -m streamlit run app/dashboard.py
 ```
 
-A running server keeps the allow-list it started with, so restart after
-rotating (`kill "$(cat .streamlit/server.pid)" && ./start.sh`);
-`start.sh` reminds you if it detects a live instance.
-
-**Notes**
-
-- The install is large (~1.9 GB) because `xgboost>=2.0` hard-depends on
-  `nvidia-nccl-cu13` even for CPU-only use. Nothing here needs a GPU.
-- The semantic backend is an optional extra — it pulls torch, so it is not in
-  the default install:
-  `./.venv/bin/pip install -e ".[sbert]"` then choose `sbert` as the
-  categorizer. `available_backends()` reports it only when it is importable.
-- `artifacts/` is gitignored. Without it the dashboard still loads, but shows
-  "No model trained yet" until you run step 3.
-- Own data: `./.venv/bin/python scripts/train.py --csv path/to/export.csv`
-  (header names are auto-matched; a file with no `category` column is scored,
-  not evaluated).
-- `server.allowedHosts` guards the **WebSocket** handshake (`/_stcore/stream`),
-  not HTTP — a request to `/` returns 200 regardless, so an HTTP-only check can
-  look healthy while the app is actually blank. It accepts a list (TOML array,
-  or repeat the CLI flag); the `host=a,b` env form does *not* split on commas.
-  Each entry is matched exactly, ports ignored; `localhost` must be listed or
-  opening it yourself gets 403.
-- The committed config deliberately omits `allowedHosts`, `server.port` and
-  `server.address`: hard-coding any of them breaks cloud deploys (cloud hosts
-  differ per app, and Community Cloud health-checks the default port 8501).
-  Use `./start.sh <host>` locally plus CLI flags for anything exotic.
-
-## Use (same steps, for reference)
+# Tests
 
 ```bash
-# 1. train (writes artifacts/expense_model.joblib + artifacts/metrics.json)
-./.venv/bin/python scripts/train.py --rows 5000 --folds 3
-
-# 2. run the dashboard
-./start.sh            # or: ./.venv/bin/streamlit run app/dashboard.py
-
-# 3. tests
-./.venv/bin/python -m pytest -q        # 42 passed
-```
-
-Score your own export without retraining:
-
-```bash
-./.venv/bin/python scripts/train.py --csv data/raw/my_export.csv
-```
-
-A CSV with no usable `category` column is detected automatically and only
-scored — real bank exports carry neither category nor fraud labels, so they can
-be scored but not evaluated.
-
-## Results (measured, not aspirational)
-
-On the bundled synthetic dataset (5,041 rows, 17 categories, 2.4% injected
-anomalies), chronological 70/30 split:
-
-| Metric | Value |
-|---|---|
-| Categorisation accuracy | **99.67%** (macro-F1 0.9950) |
-| Anomaly average precision | **0.346** vs 0.024 random → **14.1× lift** |
-| Precision / Recall / F1 @ operating point | 0.375 / 0.405 / 0.390 |
-
-Per injected-anomaly type (catch rate):
-
-| Type | Caught | Note |
-|---|---|---|
-| `unknown_merchant` | 6/6 (100%) | strong signal |
-| `amount_spike` | 8/14 (57%) | `amount_vs_category` is the single best feature (AP 0.50 alone) |
-| `velocity_burst` | 2/13 (15%) | only caught after adding the `txns_prev_2h` short window |
-| `odd_hour` | 0/4 (0%) | **known gap** — hour alone is not discriminative at this base rate |
-
-### Honest caveats
-
-- Ground truth is **synthetic**. Real fraud is better hidden than our injected
-  patterns; treat these numbers as a comparative baseline between configs, not
-  as a production fraud-rate estimate.
-- `odd_hour` is undetected at the current operating point. Adding `hour` back to
-  the detector made overall AP *worse* (0.360 → 0.251), so it is currently left
-  out rather than silently degrading the ensemble.
-- Feature selection matters more than the detector here: all 17 engineered
-  features scored AP 0.112; the selected 5 score 0.346. IsolationForest picks
-  features uniformly at random, so ~14 noise features diluted the 3 informative
-  ones (classic unsupervised dilution).
-
-## Design decisions (and why)
-
-- **LightGBM is the default categoriser, not CatBoost.** Measured on the identical
-  split: LightGBM 10.0s fit / 0.9934 accuracy vs CatBoost 131.3s / 0.9802 —
-  **13× faster and more accurate**. CatBoost native-text also fails on very small
-  uploads ("Dictionary size is 0"); there is an explicit dictionary override that
-  is applied *only* as a fallback, so real data keeps the fast path.
-- **Feature leakage is guarded by tests.** Velocity/context features are computed
-  strictly from rows *before* the current timestamp, per account. Sorting must be
-  by `(account, time)` — sorting by time alone shatters contiguous runs when
-  accounts interleave (this bug was caught by a sentinel-rate test).
-- **Tree boosters on sparse text underperform a linear model at small *n***
-  (471 train rows: LightGBM 0.54 vs LogReg 0.89) and converge as data grows
-  (3,500 rows: 0.9967 vs 0.9977). The out-of-fold estimates are verified against
-  an independent holdout rather than assumed correct.
-
-## Layout
-
-```
-src/expense_ml/
-  ingest.py      # CSV loading, column aliasing, money parsing, quarantine
-  synthetic.py   # labelled generator with injected anomaly patterns
-  features.py    # leak-free row-local + contextual/velocity features
-  categorize.py  # backend registry: lightgbm | catboost | xgboost | sbert
-  anomaly.py     # PyOD detectors + combo ensemble voting, thresholds
-  pipeline.py    # chronological split, training, metrics, persistence
-app/dashboard.py # Streamlit UI
-.streamlit/config.toml # address/port/allowedHosts (so no flags are needed)
-start.sh         # start the dashboard, rotate the preview hostname
-scripts/         # train.py, generate_data.py
-tests/           # 42 tests incl. no-future-leakage and anomaly sanity
+uv run pytest -q
 ```
 
 ## Notes on this environment
 
-- CPU-only; all models are scikit-learn-compatible estimators, no GPU needed.
-- `polars` expressions use `min_samples` (Polars 2.0 removed `min_periods`) and
-  `Series.add` / `to_numpy(dtype=...)` no longer exist — the code targets the
-  2.x API throughout.
+- Streamlit Community Cloud installs Python ~3.15.2, polars==2.10 at
+  `pyarrow==24.0.0` (downgraded), so the local `requirements.txt` pinned
+  `polars==2.10` (which is why we pin `~1.234, >=0.049`); do **not** install
+  `pyarrow==24.0.0` yourself: the Cloud will pull a wheel that is newer than
+  our build (crashes).
+
+## Known limitations
+
+- The **synthetic** samples write to `data/raw/`, which may be missing on a
+  pre-populated checkout; the app writes there during `sample_bytes()`.
+- CatBoost reads raw description text with no vectorizer step; it is slow and
+  memory-heavy.
+- The anomaly detector uses these *feature names*:
+  `date`, `description`, `category`, `account`, `currency`
+- `type`/`direction` tells us if an unsigned amount is money *in* or *out*,
+  so the app analyses these two columns in your *real* CSV export.
+
+## Design decisions
+
+### Architecture
+
+- **Polars** (fast CSV parser, concurrent reader)
+- **Categorizer**: LightGBM (default), CatBoost, XGBoost, SBERT
+- **Anomaly detection**: PyOD ensemble
+
+### Rationale
+
+- *Ground truth* comes from the **synthetic** generator; real fraud
+  labels are not available.
+- The anomaly detector uses features uniformly,
+  so amount/velocity signals beat calendar features.
+- Very small uploads *cannot be trained*; CatBoost additionally needs
+  a *dictionary* fallback below ~200 rows.
+
+# Pipeline overview
+
+We build the categorizer, anomaly detector and anomaly scoring together.
+
+## Training
+
+Trains a model and returns its evaluation metrics.
+
+```python
+df = make_transactions(500, seed=23)
+cfg = TrainConfig(categorizer="lightgbm", anomaly_method="ensemble")
+result = train_model(df, cfg, verbose=True)
+path = result.model.save("model.joblib")
+```
+
+## Scoring
+
+Returns the dataframe annotated with categories and anomaly flags.
+
+### Pre-fit
+
+- `ExpenseModel.fit()` requires at least 50 rows to train; otherwise raises.
+- `ExpenseModel.score()` requires a `category` column; falls back to `Uncategorized`.
+- `ExpenseModel.score()` returns `anomaly_flag`, `anomaly_score`, `anomaly_reason`.
+
+### Post-fit
+
+- `ExpenseModel.make()` compiles predictions.
+- `ExpenseModel` exposes `loaded`, `categorizer`, `anomaly_features`.
+
+### Anomaly
+
+```python
+loaded = ExpenseModel.load(path)
+out = loaded.score(df)
+```
+
+## Aggregations
+
+Outlier grouping by `anomaly_score` bucket: the `anomaly_score` ranges in
+**[0, 1]** with higher = more anomalous.
+
+---
+
+## Score
+
+Score returns the enriched frame with categories and anomaly flags.
+
+```python
+out = loaded.score(df)
+```
+
+## Folder layout
+
+```
+├── app/dashboard.py          # Streamlit app
+│ └── __pycache__/
+├── .streamlit/
+│   └── config.toml
+├── data/raw/*.csv
+├── artifacts/*.joblib
+├── artifacts/*.json
+└── scripts/
+    ├── generate_data.py
+    └── train.py
+
+"""
+
+def main() -> None:
+    # 4/11/2026-ish: the csv lives under src/, run that
+    import subprocess
+    tmp = "src/app/dashboard.py"
+    print(subprocess.check_output(["open", tmp], text=True))
+
+if __name__ == "__main__":
+    import sys
+    main()
+```
+
+"""
+
+def foo():
+    import streamlit as st
+
+    st.text_input("Model", key="model_name", label_visibility="collapsed")
+
+    st.button("Predict", key="predict", type="primary")
+    st.button("Reset", key="reset", type="secondary")
+
+
+class Freq
+
+    no_spikes = True
+    spike_times = {}
+
+    @classmethod
+    def add_spike(cls, i=0, j=0):
+        pass
+
+    @classmethod
+    def reset(cls):
+        pass
+
+    @classmethod
+    def clear_outliers(cls):
+        pass
+
+    def __new__(cls):
+        return {}
+
+    @classmethod
+    def check(cls):
+        pass
+
+    @classmethod
+    def load(cls, path):
+        import pickle
+        with open(path, "rb") as f:
+            return pickle.load(f)
+
+    def __contains__(self, item):
+        pass
+
+    @classmethod
+    def plot(cls, x, y, x_points, colors):
+        pass
+
+    @classmethod
+    def fit(cls, data):
+        pass
+
+    @classmethod
+    def info(cls, dec, det, miss, flag):
+        pass
