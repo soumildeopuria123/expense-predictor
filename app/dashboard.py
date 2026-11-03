@@ -31,12 +31,11 @@ from expense_ml.categorize import REGISTRY, available_backends
 from expense_ml.config import ACCOUNT, AMOUNT, CATEGORY, DATE, DESC, IngestReport
 from expense_ml.ingest import IngestError, load_transactions
 from expense_ml.pipeline import ExpenseModel, TrainConfig, save_metrics, train_model
-from expense_ml.synthetic import ANOMALY_LABEL, make_transactions, write_csv
+from expense_ml.synthetic import ANOMALY_LABEL, make_transactions, sample_csv_bytes
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_PATH = ROOT / "artifacts" / "expense_model.joblib"
 METRICS_PATH = ROOT / "artifacts" / "metrics.json"
-SAMPLE_PATH = ROOT / "data" / "raw" / "sample_transactions.csv"
 
 st.set_page_config(
     page_title="Expense Anomaly Predictor",
@@ -66,9 +65,8 @@ def ingest(data: bytes, skip_rows: int) -> tuple[pl.DataFrame, IngestReport]:
 
 @st.cache_data(show_spinner=False)
 def sample_bytes() -> bytes:
-    if not SAMPLE_PATH.exists():
-        write_csv(make_transactions(5000, seed=7), str(SAMPLE_PATH))
-    return SAMPLE_PATH.read_bytes()
+    df = make_transactions(5000, seed=7)
+    return sample_csv_bytes(df)
 
 
 def _polars(df: pl.DataFrame):
