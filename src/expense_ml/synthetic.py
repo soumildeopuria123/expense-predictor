@@ -7,8 +7,8 @@ just a number generator.
 
 Two kinds of label are attached:
 
-* ``category``            -- the true spend category, for classifier metrics;
-* ``is_injected_anomaly`` -- whether the row was deliberately corrupted, which
+* `category`            -- the true spend category, for classifier metrics;
+* `is_injected_anomaly` -- whether the row was deliberately corrupted, which
   gives us precision/recall for the unsupervised detector. This column is a
   *target only*; the feature builder must never see it.
 """
@@ -136,7 +136,7 @@ def make_transactions(
 ) -> pl.DataFrame:
     """Generate a labelled transaction history.
 
-    ``anomaly_rate`` controls how many rows are deliberately corrupted, across
+    `anomaly_rate` controls how many rows are deliberately corrupted, across
     four realistic patterns (amount spike, odd-hour, velocity burst, unknown
     merchant). These are the signals a fraud model should plausibly catch.
     """
@@ -249,3 +249,20 @@ def write_csv(df: pl.DataFrame, path: str) -> str:
     )
     out.write_csv(path)
     return path
+
+
+def sample_csv_bytes(df: pl.DataFrame) -> bytes:
+    """Render the bank-export-shaped sample as CSV bytes in memory.
+
+    Used by the dashboard's sample-data shortcut so the app never has to write
+    to data/raw/ on a cloud checkout, where polars' lazy sink_csv can fail even
+    after mkdir(parents=True).
+    """
+    out = df.select(
+        pl.col(DATE).dt.strftime("%Y-%m-%d").alias("Date"),
+        pl.col(DESC).alias("Description"),
+        pl.col(AMOUNT).round(2).alias("Amount"),
+        pl.col(ACCOUNT).alias("Account"),
+        pl.col(CURRENCY).alias("Currency"),
+    )
+    return out.write_csv()
