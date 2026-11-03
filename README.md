@@ -30,7 +30,7 @@ python3 -m venv .venv
 
 ./.venv/bin/python -m pytest -q       # 42 passed
 ./.venv/bin/python scripts/train.py --rows 5000 --folds 3   # ~80s, writes artifacts/
-./start.sh                                              # http://localhost:3000
+./start.sh                                              # http://localhost:8501
 ```
 
 That's the whole loop: install → test → train → dashboard.
@@ -59,6 +59,9 @@ data files are needed. `xgboost`, `catboost` and `sbert` backends are
 intentionally left out of `requirements.txt` (size); the UI simply hides
 backends that are not installed. To edit the default subdomain or bump the
 Python version, use the app's **Settings** menu after deploying.
+
+Deployed URL:
+https://soumildeopuria123-expense-predictor-appdashboard-lpdito.streamlit.app
 
 If the preview hostname changes (it does when the environment is restored) and
 the page loads but renders **blank**, Streamlit is rejecting the WebSocket:
@@ -91,6 +94,10 @@ rotating (`kill "$(cat .streamlit/server.pid)" && ./start.sh`);
   or repeat the CLI flag); the `host=a,b` env form does *not* split on commas.
   Each entry is matched exactly, ports ignored; `localhost` must be listed or
   opening it yourself gets 403.
+- The committed config deliberately omits `allowedHosts`, `server.port` and
+  `server.address`: hard-coding any of them breaks cloud deploys (cloud hosts
+  differ per app, and Community Cloud health-checks the default port 8501).
+  Use `./start.sh <host>` locally plus CLI flags for anything exotic.
 
 ## Use (same steps, for reference)
 
