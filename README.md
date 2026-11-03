@@ -42,6 +42,24 @@ and it prints the URL instead of failing on the port.
 
 Stop a detached instance with `kill "$(cat .streamlit/server.pid)"`.
 
+## Deploy (shareable link)
+
+Streamlit Community Cloud hosts the dashboard for free, straight from this
+repo, and gives it a public URL anyone can open:
+
+1. Sign in at <https://share.streamlit.io> with your GitHub account.
+2. Click **Create app** → **Yup, I have an app** → **Paste GitHub URL**, and
+   paste:
+   `https://github.com/soumildeopuria123/expense-predictor/blob/main/app/dashboard.py`
+3. Leave Python at the default (3.12) and click **Deploy**.
+
+First launch installs `requirements.txt` (~2 min). The app trains the `lightgbm`
+categoriser on demand inside the cloud instance — no local venv, artifacts or
+data files are needed. `xgboost`, `catboost` and `sbert` backends are
+intentionally left out of `requirements.txt` (size); the UI simply hides
+backends that are not installed. To edit the default subdomain or bump the
+Python version, use the app's **Settings** menu after deploying.
+
 If the preview hostname changes (it does when the environment is restored) and
 the page loads but renders **blank**, Streamlit is rejecting the WebSocket:
 
@@ -154,7 +172,7 @@ src/expense_ml/
   synthetic.py   # labelled generator with injected anomaly patterns
   features.py    # leak-free row-local + contextual/velocity features
   categorize.py  # backend registry: lightgbm | catboost | xgboost | sbert
-  anomaly.py    # PyOD detectors + combo ensemble voting, thresholds
+  anomaly.py     # PyOD detectors + combo ensemble voting, thresholds
   pipeline.py    # chronological split, training, metrics, persistence
 app/dashboard.py # Streamlit UI
 .streamlit/config.toml # address/port/allowedHosts (so no flags are needed)
