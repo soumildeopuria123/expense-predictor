@@ -18,6 +18,7 @@ from __future__ import annotations
 import datetime as dt
 import math
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Sequence
 
 import numpy as np
@@ -236,6 +237,9 @@ def make_transactions(
 
 def write_csv(df: pl.DataFrame, path: str) -> str:
     """Write a bank-export-shaped CSV (date, description, amount)."""
+    # data/raw/ is gitignored, so a fresh checkout (e.g. a cloud deploy) has no
+    # directory to write into; polars does not create parents itself.
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     out = df.select(
         pl.col(DATE).dt.strftime("%Y-%m-%d").alias("Date"),
         pl.col(DESC).alias("Description"),
