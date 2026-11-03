@@ -12,7 +12,13 @@
 # Host header"). The default (empty list) accepts any host, which every
 # hosted runtime needs. For local hardening, run ./start.sh <hostname>, which
 # writes a live allow-list entry rather than committing one.
+#
+# --- server.port / server.address (intentionally not set) --------------------
+# Streamlit Community Cloud launches the app itself on the *default* port and
+# health-checks localhost:8501. A committed port/address overrides that and the
+# deploy ends in "Error running app" (logs: Get http://localhost:8501/healthz:
+# connect: connection refused, while the server actually runs on the pinned
+# port). Keep port/address out of the committed config; locally ./start.sh
+# prints the URL the server actually binds.
 [server]
-address = "0.0.0.0"
-port = 3000
 headless = true
