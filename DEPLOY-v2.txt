@@ -1,0 +1,3 @@
+Refresh deploy marker - v2
+
+Commits: requirements.txt (lean deps), .streamlit/config.toml (port 8501, no allowedHosts), start.sh (port fallback), src/expense_ml/synthetic.py (mkdir parents), README.md (live URL section).
