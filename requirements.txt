@@ -1,0 +1,15 @@
+# Runtime dependencies for the Streamlit dashboard.
+# This file is what Streamlit Community Cloud installs, so keep it lean:
+#
+# * lightgbm is the default categoriser (DEFAULT_BACKEND in src/expense_ml/categorize.py).
+# * catboost / xgboost / sbert are optional backends -- they are imported lazily
+#   and simply disappear from the UI if they are not installed. Do NOT add
+#   xgboost>=2.0 here: it hard-pulls ~1.9 GB of NVIDIA CUDA wheels on every
+#   environment, CPU-only included, which Community Cloud cannot accommodate.
+numpy>=1.26
+polars>=1.0
+scikit-learn>=1.4
+lightgbm>=4.0
+joblib>=1.3
+streamlit>=1.61
+streamlit-aggrid>=1.0
