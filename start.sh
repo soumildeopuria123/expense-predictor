@@ -43,7 +43,16 @@ local = {"localhost", "127.0.0.1"}
 
 m = re.search(r"(allowedHosts\s*=\s*\[)\s*(.*?)\s*(\])", text, re.S)
 if not m:
-    raise SystemExit(f"no allowedHosts array found in {p}")
+    if "allowedHosts" in text:
+        raise SystemExit(f"allowedHosts found but no array in {p}")
+    # No allow-list is committed (the cloud-safe default): create one live so
+    # ./start.sh <hostname> still hardens local runs. Nothing is committed.
+    block = "\nallowedHosts = [" + "".join(
+        f'\n  "{e}",' for e in ("localhost", "127.0.0.1", new)
+    ) + "\n]\n"
+    p.write_text(text + block)
+    print(f"allowedHosts: created -> {new}")
+    raise SystemExit(0)
 
 entries = re.findall(r'"([^"]+)"', m.group(2))
 if new in local:
