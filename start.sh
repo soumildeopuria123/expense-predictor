@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start the dashboard. Ctrl-C to stop.
 #
-#   ./start.sh                          # http://localhost:3000
+#   ./start.sh                          # http://localhost:8501
 #   ./start.sh <new-preview-host>       # after a restore changes the hostname
 #   kill "$(cat .streamlit/server.pid)" # stop a detached instance
 #
@@ -25,7 +25,7 @@ PORT="$(./.venv/bin/python - <<'PY'
 import re, pathlib
 t = pathlib.Path(".streamlit/config.toml").read_text()
 m = re.search(r"^\s*port\s*=\s*(\d+)", t, re.M)
-print(m.group(1) if m else "3000")
+print(m.group(1) if m else "8501")
 PY
 )"
 
