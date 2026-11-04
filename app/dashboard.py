@@ -26,12 +26,14 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if _SRC.is_dir() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from expense_ml.anomaly import ALL_METHODS
-from expense_ml.categorize import REGISTRY, available_backends
 from expense_ml.config import ACCOUNT, AMOUNT, CATEGORY, DATE, DESC, IngestReport
 from expense_ml.ingest import IngestError, load_transactions
-from expense_ml.pipeline import ExpenseModel, TrainConfig, save_metrics, train_model
 from expense_ml.synthetic import ANOMALY_LABEL, make_transactions, sample_csv_bytes
+
+# expense_ml.anomaly (PyOD), expense_ml.categorize (LightGBM/CatBoost/XGBoost)
+# and expense_ml.pipeline pull in most of the memory a cold start needs. Only
+# the train tab uses them, so they are imported inside it: the landing tab stays
+# fast and light enough to boot on a 1 GB Community Cloud container.
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_PATH = ROOT / "artifacts" / "expense_model.joblib"
@@ -49,8 +51,10 @@ st.set_page_config(
 # caching / resources
 # --------------------------------------------------------------------------- #
 @st.cache_resource(show_spinner=False)
-def get_model() -> ExpenseModel | None:
+def get_model() -> "ExpenseModel | None":
     if MODEL_PATH.exists():
+        from expense_ml.pipeline import ExpenseModel
+
         try:
             return ExpenseModel.load(MODEL_PATH)
         except Exception as exc:  # corrupt/stale artifact should not brick the app
@@ -241,6 +245,10 @@ def score_tab() -> None:
 
 
 def train_tab() -> None:
+    from expense_ml.anomaly import ALL_METHODS
+    from expense_ml.categorize import available_backends
+    from expense_ml.pipeline import TrainConfig, save_metrics, train_model
+
     st.subheader("Evaluate & Train")
     st.caption("Metrics come from a chronological 70/30 split, never a random one.")
 
